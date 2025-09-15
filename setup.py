@@ -22,18 +22,25 @@ import warnings
 try:
     # Use setuptools if available, for install_requires (among other things).
     import setuptools
-    from setuptools import setup
+    from setuptools import setup, Extension
+    from setuptools.command.build_ext import build_ext
 except ImportError:
     setuptools = None
-    from distutils.core import setup
-
-from distutils.core import Extension
+    try:
+        from distutils.core import setup
+        from distutils.core import Extension
+        from distutils.command.build_ext import build_ext
+    except ImportError:
+        # Fallback for Python 3.12+ where distutils is deprecated/removed
+        raise ImportError(
+            "This package requires setuptools. Please install setuptools: "
+            "pip install setuptools"
+        )
 
 # The following code is copied from
 # https://github.com/mongodb/mongo-python-driver/blob/master/setup.py
 # to support installing without the extension on platforms where
 # no compiler is available.
-from distutils.command.build_ext import build_ext
 
 
 class custom_build_ext(build_ext):
@@ -140,9 +147,17 @@ if setuptools is not None:
 # Verify that the SSL module has all the modern upgrades. Check for several
 # names individually since they were introduced at different versions,
 # although they should all be present by Python 3.4 or 2.7.9.
+# match_hostname was moved from ssl to ssl.match_hostname in Python 3.2+
+try:
+    from ssl import match_hostname
+except ImportError:
+    try:
+        from backports.ssl_match_hostname import match_hostname
+    except ImportError:
+        match_hostname = None
+
 if (not hasattr(ssl, 'SSLContext') or
-        not hasattr(ssl, 'create_default_context') or
-        not hasattr(ssl, 'match_hostname')):
+        not hasattr(ssl, 'create_default_context')):
     raise ImportError("Tornado requires an up-to-date SSL module. This means "
                       "Python 2.7.9+ or 3.4+ (although some distributions have "
                       "backported the necessary changes to older versions).")
@@ -189,6 +204,11 @@ setup(
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3.10',
+        'Programming Language :: Python :: 3.11',
+        'Programming Language :: Python :: 3.12',
         'Programming Language :: Python :: Implementation :: CPython',
         'Programming Language :: Python :: Implementation :: PyPy',
     ],
